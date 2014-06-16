@@ -3,10 +3,10 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 
-#define SHORT_MIN 888   /* 444 microseconds */
-#define SHORT_MAX 2666  /* 1333 microseconds */
-#define LONG_MIN 2668   /* 1334 microseconds */
-#define LONG_MAX 4444   /* 2222 microseconds */
+#define SHORT_MIN 444   /* 444 microseconds */
+#define SHORT_MAX 1333  /* 1333 microseconds */
+#define LONG_MIN 1334   /* 1334 microseconds */
+#define LONG_MAX 2222   /* 2222 microseconds */
 
 typedef enum {
     STATE_START1, 
@@ -24,24 +24,34 @@ uint8_t ccounter;
 volatile uint8_t has_new;
 State state = STATE_BEGIN;
 
-void RC5_Init()
+void RC5_Init(void)
 {
+
     /* Set INT0 to trigger on any edge */
+#if defined(EICRA)
     EICRA |= _BV(ISC00);
+#else
+    GICR |= (1 << INT0); // Enable INT0
+    MCUCR &= ~(1 << ISC01);
+    MCUCR |= (1 << ISC00);
+#endif
+
+
+
     /* Set PD2 to input */
     DDRD &= ~_BV(PD2);
     
     /* Reset Timer1 Counter */
     TCCR1A = 0;
-    /* Enable Timer1 in normal mode with /8 clock prescaling */
+    /* Enable Timer1 in normal mode with /no prescaling */
     /* One tick is 500ns with 16MHz clock */
-    TCCR1B = _BV(CS11);
+    TCCR1B = _BV(CS10);
     
     RC5_Reset();
 }
 
 
-void RC5_Reset()
+void RC5_Reset(void)
 {
     has_new = 0;
     ccounter = 14;
@@ -49,7 +59,12 @@ void RC5_Reset()
     state = STATE_BEGIN;
     
     /* Enable INT0 */
+#if defined(EIMSK)
     EIMSK |= _BV(INT0);
+#else
+    GICR |= (1 << INT0);
+#endif
+
 }
 
 
@@ -63,8 +78,7 @@ uint8_t RC5_NewCommandReceived(uint16_t *new_command)
     return has_new; 
 }
 
-ISR(INT0_vect)
-{
+ISR(INT0_vect) {
     uint16_t delay = TCNT1;
 
     /* TSOP2236 pulls the data line up, giving active low,
@@ -135,7 +149,12 @@ ISR(INT0_vect)
         has_new = 1;
         
         /* Disable INT0 */
+#if defined(EIMSK)
         EIMSK &= ~_BV(INT0);
+#else
+        GICR &= ~(1 << INT0);
+#endif
+
     }
     
     TCNT1 = 0;

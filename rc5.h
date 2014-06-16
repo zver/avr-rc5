@@ -28,10 +28,10 @@
 #define RC5_GetCommandAddressBits(command) (command & 0x7FF)
 
 /* Initialize timer and interrupt */
-void RC5_Init();
+void RC5_Init(void);
 
 /* Reset the library back to waiting-for-start state */
-void RC5_Reset();
+void RC5_Reset(void);
 
 /* Poll the library for new command.
  * 

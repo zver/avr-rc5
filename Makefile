@@ -1,43 +1,21 @@
-AVRDUDE_MCU = m328p
-AVRDUDE_PROGRAMMER = stk500v1
-AVRDUDE_PORT = /dev/ttyACM0
-AVRDUDE_BAUDRATE = 115200
-
-AVRDUDE = avrdude
-AVRDUDEOPTS =   -p $(AVRDUDE_MCU) \
-        -c $(AVRDUDE_PROGRAMMER) \
-        -P $(AVRDUDE_PORT) \
-        -b $(AVRDUDE_BAUDRATE) \
-        -F -D
-
-FREQUENCY = 16000000
-MCU = atmega328p
-CC = avr-gcc
-CFLAGS = -mmcu=$(MCU) -O2 -DF_CPU=$(FREQUENCY)L -Wall
-OBJCOPY = avr-objcopy
-OBJCOPYFLAGS = -j .text -j .data -O ihex 
-PROJNAME = rc5
-OBJECTS = main.o rc5.o
+PROJNAME=avr-rc5
+MCU=atmega8
+CC=avr-gcc
 LD = avr-gcc
-LDFLAGS = -mmcu=$(MCU)
+OBJCOPY=avr-objcopy
+OBJCOPYFLAGS=-R .eeprom -O ihex
 
+OBJECTS = main.o rc5.o
+
+CFLAGS=-g -mmcu=$(MCU) -Wall -Wstrict-prototypes -mcall-prologues -I/usr/lib/avr/include/ -B/usr/lib/avr/lib/avr5/ -D __AVR_ATmega8__ -D F_CPU=1000000 -D __OPTIMIZE__
 all: $(PROJNAME).hex
-
-$(PROJNAME).elf: $(OBJECTS) 
-    $(LD) $(LDFLAGS) $(OBJECTS) -o $@
-
-$(PROJNAME).hex: $(PROJNAME).elf
-    $(OBJCOPY)  $(OBJCOPYFLAGS) $< $@
-
-%.o: %.c %.h
-    $(CC) $(CFLAGS) -c $< -o $@
-
-upload: $(PROJNAME).hex
-    $(AVRDUDE) $(AVRDUDEOPTS) -U flash:w:$<
-
-rebuild: clean all
-
+$(PROJNAME).hex: $(PROJNAME).out
+	$(OBJCOPY)  $(OBJCOPYFLAGS) $< $@
+$(PROJNAME).out: $(OBJECTS)
+	$(CC) $(CFLAGS) -o $(PROJNAME).out -Wl,-Map,$(PROJNAME).map $(OBJECTS)
+%.o: %.c %.h 
+	$(CC) $(CFLAGS) -Os -c $< -o $@
+load: $(PROJNAME).hex
+	avrdude -c usbasp -p $(MCU) -U flash:w:$(PROJNAME).hex
 clean:
-    $(RM) $(PROJNAME) *.o *.elf *.hex *~
-
-.PHONY: clean rebuild
+	rm -f *.o *.map *.out *.elf *.hex
